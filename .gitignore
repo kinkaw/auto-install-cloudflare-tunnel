@@ -1,0 +1,8 @@
+# Generated Cloudflare Tunnel Manager workspace data.
+# These files may contain Cloudflare account certificates, tunnel credentials,
+# operational backups, and local runtime logs.
+cloudflared-manager/
+cloudflared/
+.cloudflared/
+*.tar.gz
+*.tgz
