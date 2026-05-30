@@ -1,38 +1,39 @@
 # auto-install-cloudflare-tunnel
 
-Interactive Bash manager for installing and operating multiple Cloudflare
-Tunnels with Docker.
+เครื่องมือแบบ interactive ที่เขียนด้วย Bash สำหรับช่วยติดตั้งและจัดการ
+Cloudflare Tunnel หลายรายการผ่าน Docker ให้ใช้งานง่ายตั้งแต่เริ่มต้นจนพร้อมใช้งานจริง
 
-## Quick start
+## เริ่มใช้งานอย่างรวดเร็ว
 
 ```bash
 chmod +x cloudflare-tunnel-manager.sh
 ./cloudflare-tunnel-manager.sh
 ```
 
-Optional custom data directory:
+หากต้องการกำหนดโฟลเดอร์เก็บข้อมูลเอง สามารถใช้ `--base-dir` ได้:
 
 ```bash
 ./cloudflare-tunnel-manager.sh --base-dir /home/admin/server/cloudflared
 ```
 
-## Main features
+## ฟีเจอร์หลัก
 
-- Optional Docker installation on apt-based Linux servers
-- Cloudflare login using the official `cloudflare/cloudflared` Docker image
-- Create, list, and delete tunnels
-- Create DNS routes for one or many hostnames
-- Generate `config.yaml` with multiple ingress hostnames per tunnel
-- Generate a consolidated `docker-compose.yml`
-- Start, stop, restart, and view tunnel logs
-- Health dashboard for Docker, Compose, containers, disk usage, and status
-- Backup and restore generated tunnel files
-- Nginx reverse proxy template generator
-- Validation for hostnames, services, cloudflared ingress config, and Compose
+- ติดตั้ง Docker แบบ optional สำหรับ Linux server ที่ใช้ apt
+- Login Cloudflare ผ่าน Docker image ทางการ `cloudflare/cloudflared`
+- สร้าง ดูรายการ และลบ Tunnel
+- สร้าง DNS Route ได้ทั้ง hostname เดียวหรือหลาย hostname
+- สร้าง `config.yaml` โดยรองรับหลาย ingress hostname ต่อหนึ่ง Tunnel
+- สร้าง `docker-compose.yml` รวมทุก Tunnel ไว้ในไฟล์เดียว
+- Start, Stop, Restart และดู Logs ของ Tunnel
+- Health Dashboard สำหรับตรวจสถานะ Docker, Compose, containers, disk usage และ service status
+- Backup และ Restore ไฟล์ที่ script สร้างขึ้น
+- สร้าง Nginx reverse proxy template
+- Validation สำหรับ hostname, service URL, cloudflared ingress config และ Docker Compose
+- รองรับหลาย Tunnel, หลายโดเมน และหลาย Cloudflare account โดยแยก credential ตามโฟลเดอร์
 
-## Generated layout
+## โครงสร้างไฟล์ที่ถูกสร้าง
 
-By default the script writes local runtime files into `cloudflared-data/`:
+โดยค่าเริ่มต้น script จะสร้างและเก็บไฟล์ runtime ไว้ใน `cloudflared-data/`:
 
 ```text
 cloudflared-data/
@@ -50,19 +51,39 @@ cloudflared-data/
   nginx-templates/
 ```
 
-`cloudflared-data/` is ignored by git because it can contain Cloudflare
-credentials and server-specific generated files.
+โฟลเดอร์ `cloudflared-data/` ถูก ignore จาก git เพราะอาจมี Cloudflare credentials
+เช่น `cert.pem`, `<tunnel-id>.json` และไฟล์ที่สร้างเฉพาะสำหรับแต่ละ server
 
-## Typical workflow
+## วิธีใช้งานทั่วไป
 
-1. Run the script.
-2. Choose **Install Docker** if Docker is not already installed.
-3. Choose **Cloudflare Login** for the account or tunnel folder.
-4. Choose **Create Tunnel**.
-5. Generate `config.yaml` when prompted.
-6. Create DNS routes when prompted.
-7. Generate `docker-compose.yml`.
-8. Start the tunnel service.
-9. Use the health dashboard and logs to verify operation.
+1. รัน script
+2. เลือก **Install Docker** หากเครื่องยังไม่ได้ติดตั้ง Docker
+3. เลือก **Cloudflare Login** สำหรับ account หรือ tunnel folder ที่ต้องการ
+4. เลือก **Create Tunnel**
+5. สร้าง `config.yaml` เมื่อ script ถาม
+6. สร้าง DNS Route เมื่อ script ถาม
+7. สร้าง `docker-compose.yml`
+8. Start tunnel service
+9. ตรวจสอบสถานะผ่าน Health Dashboard และ Logs
 
-The script is Docker-first, so a host `cloudflared` package is not required.
+script นี้ออกแบบแบบ Docker-first ดังนั้นไม่จำเป็นต้องติดตั้ง `cloudflared`
+ลงบน host โดยตรง
+
+## การรองรับหลาย Cloudflare account
+
+script รองรับหลาย Cloudflare account โดยแยก credential ตามโฟลเดอร์ เช่น:
+
+```text
+cloudflared-data/
+  account-a/
+    cert.pem
+    <tunnel-id>.json
+    config.yaml
+  account-b/
+    cert.pem
+    <tunnel-id>.json
+    config.yaml
+```
+
+แต่ละโฟลเดอร์สามารถ login ด้วย Cloudflare account คนละบัญชีได้ และเมื่อต้องสร้าง
+Tunnel หรือ DNS Route ให้เลือกโฟลเดอร์ของ account นั้นให้ถูกต้อง
