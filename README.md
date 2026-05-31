@@ -145,6 +145,14 @@ cloudflare-tunnel-manager.bat --version
 rem cftm-wrapper-version=1.0.1
 ```
 
+เช็คบรรทัดที่เคย error ได้ด้วย:
+
+```bat
+findstr /n /c:"Invalid service skipped" cloudflare-tunnel-manager.bat
+```
+
+ไฟล์ล่าสุดต้องเห็น `${hostname}: $service` ไม่ใช่ `$hostname: $service`
+
 ## ข้อควรระวัง
 
 - อย่า commit หรือแชร์โฟลเดอร์ `cloudflared-data` หากมี credentials จริง
