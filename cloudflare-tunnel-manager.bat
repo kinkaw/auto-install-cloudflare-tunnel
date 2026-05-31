@@ -406,7 +406,7 @@ function Collect-IngressRules {
         if (-not $hostname) { break }
         if (-not (Test-Hostname $hostname)) { Write-Warn "Invalid hostname skipped: $hostname"; continue }
         $service = Prompt-Default "Service for $hostname" $defaultService
-        if (-not (Test-Service $service)) { Write-Warn "Invalid service skipped for $hostname: $service"; continue }
+        if (-not (Test-Service $service)) { Write-Warn "Invalid service skipped for ${hostname}: $service"; continue }
         $rules += [pscustomobject]@{ Hostname = $hostname; Service = $service }
     }
     if ($rules.Count -eq 0) { Write-Err 'At least one ingress hostname is required.'; return $null }
