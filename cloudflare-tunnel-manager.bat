@@ -2,7 +2,7 @@
 setlocal
 set "CFTM_ENTRY=%~f0"
 set "CFTM_TMP=%TEMP%\cftm-%RANDOM%-%RANDOM%.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_SCRIPT_START'; $idx=$raw.LastIndexOf($marker); if($idx -lt 0){ Write-Error 'Embedded PowerShell script not found.'; exit 1 }; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_' + 'SCRIPT_START'; $idx=$raw.IndexOf($marker); if($idx -lt 0){ Write-Error 'Embedded PowerShell script not found.'; exit 1 }; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
 if errorlevel 1 exit /b %ERRORLEVEL%
 powershell -NoProfile -ExecutionPolicy Bypass -File "%CFTM_TMP%" %*
 set "CFTM_EXIT=%ERRORLEVEL%"
