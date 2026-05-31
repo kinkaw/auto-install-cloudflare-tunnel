@@ -1,8 +1,13 @@
 @echo off
 setlocal
 set "CFTM_ENTRY=%~f0"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_SCRIPT_START'; $idx=$raw.IndexOf($marker); if($idx -lt 0){ Write-Error 'Embedded PowerShell script not found.'; exit 1 }; $script=$raw.Substring($idx + $marker.Length); $tmp=Join-Path $env:TEMP ('cftm-' + [guid]::NewGuid().ToString() + '.ps1'); Set-Content -LiteralPath $tmp -Value $script -Encoding UTF8; try { & $tmp @args; $code=$LASTEXITCODE; if($null -eq $code){$code=0}; exit $code } finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }" %*
-exit /b %ERRORLEVEL%
+set "CFTM_TMP=%TEMP%\cftm-%RANDOM%-%RANDOM%.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_SCRIPT_START'; $idx=$raw.IndexOf($marker); if($idx -lt 0){ Write-Error 'Embedded PowerShell script not found.'; exit 1 }; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
+if errorlevel 1 exit /b %ERRORLEVEL%
+powershell -NoProfile -ExecutionPolicy Bypass -File "%CFTM_TMP%" %*
+set "CFTM_EXIT=%ERRORLEVEL%"
+del "%CFTM_TMP%" >nul 2>&1
+exit /b %CFTM_EXIT%
 # POWERSHELL_SCRIPT_START
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
