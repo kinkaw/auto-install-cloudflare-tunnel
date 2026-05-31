@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem cftm-wrapper-version=1.0.1
+rem cftm-wrapper-version=1.0.2
 set "CFTM_ENTRY=%~f0"
 set "CFTM_TMP=%TEMP%\cftm-%RANDOM%-%RANDOM%.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_' + 'SCRIPT_START'; $matches=[regex]::Matches($raw,[regex]::Escape($marker)); if($matches.Count -ne 1){ Write-Error ('Embedded PowerShell marker count must be 1, found ' + $matches.Count); exit 1 }; $idx=$matches[0].Index; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
@@ -16,7 +16,7 @@ param(
 )
 
 $AppName = 'Cloudflare Tunnel Manager'
-$AppVersion = '1.0.1'
+$AppVersion = '1.0.2'
 $BaseDir = if ($env:CFTM_HOME) { $env:CFTM_HOME } else { Join-Path (Get-Location) 'cloudflared-data' }
 $CloudflaredImage = if ($env:CLOUDFLARED_IMAGE) { $env:CLOUDFLARED_IMAGE } else { 'cloudflare/cloudflared:latest' }
 $ContainerCfDir = '/home/nonroot/.cloudflared'
@@ -138,6 +138,27 @@ function Require-Docker {
     return $true
 }
 
+function Show-DockerCredentialHelp {
+    $config = Join-Path $env:USERPROFILE '.docker\config.json'
+    Write-Warn 'Docker failed. If the message mentions credentials or logon session, Docker Desktop credential helper may be unavailable in this Windows session.'
+    Write-Info 'First try running this script from a normal non-elevated terminal after Docker Desktop is fully started.'
+    Write-Info 'Then test manually: docker pull cloudflare/cloudflared:latest'
+    if (Test-Path -LiteralPath $config) {
+        try {
+            $dockerConfig = Get-Content -Raw -LiteralPath $config | ConvertFrom-Json
+            $hasCredsStore = $dockerConfig.PSObject.Properties.Name -contains 'credsStore'
+            $hasCredHelpers = $dockerConfig.PSObject.Properties.Name -contains 'credHelpers'
+            if ($hasCredsStore -or $hasCredHelpers) {
+                Write-Warn "Docker config contains credsStore/credHelpers: $config"
+                Write-Info 'For public images, you can back up config.json and remove credsStore/credHelpers, then retry docker pull.'
+                Write-Info 'You may need docker login again later for private registries.'
+            }
+        } catch {
+            Write-Warn "Could not inspect Docker config: $config"
+        }
+    }
+}
+
 function Get-ComposeCommand {
     & docker compose version *> $null
     if ($LASTEXITCODE -eq 0) { return @('docker', 'compose') }
@@ -171,6 +192,7 @@ function Invoke-Cloudflared([string] $TunnelDir, [string[]] $CloudflaredArgs, [s
     $dockerArgs += @('-v', "${TunnelDir}:${ContainerCfDir}", $CloudflaredImage)
     $dockerArgs += $CloudflaredArgs
     & docker @dockerArgs
+    if ($LASTEXITCODE -ne 0) { Show-DockerCredentialHelp }
 }
 
 function Get-TunnelDir([string] $Slug) { return Join-Path $BaseDir $Slug }
@@ -283,6 +305,9 @@ function Install-DockerHelp {
     Section 'Docker Setup'
     if (Get-Command docker -ErrorAction SilentlyContinue) {
         Write-Ok "Docker is already installed: $(& docker --version)"
+        & docker info *> $null
+        if ($LASTEXITCODE -eq 0) { Write-Ok 'Docker daemon is reachable.' } else { Write-Warn 'Docker daemon is not reachable.' }
+        Show-DockerCredentialHelp
         return
     }
     Write-Warn 'Automatic Docker installation is not supported by this .bat file.'

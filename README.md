@@ -139,10 +139,10 @@ cloudflare-tunnel-manager.bat --version
 cloudflare-tunnel-manager.bat --version
 ```
 
-ควรแสดง `1.0.1` หรือใหม่กว่า และบรรทัดบน ๆ ของไฟล์ควรมี:
+ควรแสดง `1.0.2` หรือใหม่กว่า และบรรทัดบน ๆ ของไฟล์ควรมี:
 
 ```bat
-rem cftm-wrapper-version=1.0.1
+rem cftm-wrapper-version=1.0.2
 ```
 
 เช็คบรรทัดที่เคย error ได้ด้วย:
@@ -152,6 +152,51 @@ findstr /n /c:"Invalid service skipped" cloudflare-tunnel-manager.bat
 ```
 
 ไฟล์ล่าสุดต้องเห็น `${hostname}: $service` ไม่ใช่ `$hostname: $service`
+
+## แก้ปัญหา Docker credential helper บน Windows
+
+ถ้า Docker แสดง error ประมาณนี้ตอน pull image:
+
+```text
+docker: error getting credentials - err: exit status 1, out: `A specified logon session does not exist. It may already have been terminated.`
+```
+
+ให้ลองตามลำดับ:
+
+1. เปิด Docker Desktop ให้พร้อมก่อน
+2. รัน Command Prompt/PowerShell แบบปกติ ไม่ต้อง Run as administrator
+3. ทดสอบ pull image เอง:
+
+```bat
+docker pull cloudflare/cloudflared:latest
+```
+
+ถ้ายัง error เดิม ให้ backup และแก้ Docker config:
+
+```bat
+copy "%USERPROFILE%\.docker\config.json" "%USERPROFILE%\.docker\config.json.bak"
+notepad "%USERPROFILE%\.docker\config.json"
+```
+
+ลบ key เหล่านี้ออกถ้ามี:
+
+```json
+"credsStore": "desktop"
+```
+
+หรือ:
+
+```json
+"credHelpers": { ... }
+```
+
+จากนั้นลองใหม่:
+
+```bat
+docker pull cloudflare/cloudflared:latest
+```
+
+หมายเหตุ: ถ้าเคยใช้ private registry อาจต้อง `docker login` ใหม่หลังแก้ config
 
 ## ข้อควรระวัง
 
