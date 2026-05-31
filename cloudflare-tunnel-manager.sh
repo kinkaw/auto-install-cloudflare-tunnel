@@ -253,6 +253,83 @@ cloudflared_no_tty() {
     "$CLOUDFLARED_IMAGE" "$@"
 }
 
+cloudflared_capture() {
+  local tunnel_dir="$1"
+  local output_file="$2"
+  shift 2
+  require_docker || return 1
+  mkdir -p "$tunnel_dir"
+
+  docker run --rm -i \
+    --user "$(id -u):$(id -g)" \
+    --workdir "$CONTAINER_HOME" \
+    -e "HOME=${CONTAINER_HOME}" \
+    -v "${tunnel_dir}:${CONTAINER_CF_DIR}" \
+    "$CLOUDFLARED_IMAGE" "$@" 2>&1 | tee "$output_file"
+
+  return "${PIPESTATUS[0]}"
+}
+
+extract_reported_saved_path() {
+  local output_file="$1"
+  awk '
+    BEGIN { found = 0 }
+    tolower($0) ~ /they have been saved to:/ {
+      found = 1
+      next
+    }
+    found == 1 {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      if ($0 != "") {
+        print $0
+        exit
+      }
+    }
+  ' "$output_file"
+}
+
+map_container_path_to_host() {
+  local tunnel_dir="$1"
+  local container_path="$2"
+
+  case "$container_path" in
+    "$CONTAINER_CF_DIR")
+      printf "%s" "$tunnel_dir"
+      ;;
+    "$CONTAINER_CF_DIR"/*)
+      printf "%s/%s" "$tunnel_dir" "${container_path#"$CONTAINER_CF_DIR"/}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_cloudflare_login() {
+  local dir="$1"
+  local output_file reported_path mapped_path
+  output_file="$(mktemp)"
+
+  cloudflared_capture "$dir" "$output_file" tunnel login
+  local status=$?
+
+  reported_path="$(extract_reported_saved_path "$output_file" || true)"
+  rm -f "$output_file"
+
+  if [[ -n "$reported_path" ]]; then
+    log_info "cloudflared reported credential path: ${reported_path}"
+    mapped_path="$(map_container_path_to_host "$dir" "$reported_path" 2>/dev/null || true)"
+    if [[ -n "$mapped_path" ]]; then
+      log_info "Mapped host path: ${mapped_path}"
+    else
+      log_warn "Reported path is inside the container but is not a mounted path."
+      log_warn "Expected mounted path prefix: ${CONTAINER_CF_DIR}"
+    fi
+  fi
+
+  return "$status"
+}
+
 tunnel_dir() {
   printf "%s/%s" "$BASE_DIR" "$1"
 }
@@ -458,7 +535,7 @@ cloudflare_login() {
 
   log_info "A Cloudflare login URL will be opened or printed by cloudflared."
   log_info "After authorizing, cert.pem will be saved in: ${dir}"
-  cloudflared "$dir" tunnel login
+  run_cloudflare_login "$dir"
 
   if [[ -f "${dir}/cert.pem" ]]; then
     log_success "Login certificate saved."
@@ -487,7 +564,7 @@ create_tunnel() {
   if [[ ! -f "$cert_file" ]]; then
     log_warn "No Cloudflare cert.pem found for ${slug}."
     if confirm "Run Cloudflare login for this tunnel folder now?" "Y"; then
-      cloudflared "$dir" tunnel login
+      run_cloudflare_login "$dir"
     fi
   fi
 
@@ -686,7 +763,7 @@ create_dns_routes_for_slug() {
   if [[ ! -f "${dir}/cert.pem" ]]; then
     log_warn "No cert.pem found in ${dir}."
     if confirm "Run Cloudflare login for this tunnel folder now?" "Y"; then
-      cloudflared "$dir" tunnel login
+      run_cloudflare_login "$dir"
     fi
   fi
 
