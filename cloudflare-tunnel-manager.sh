@@ -7,7 +7,8 @@ APP_VERSION="1.0.0"
 DEFAULT_BASE_DIR="${CFTM_HOME:-$(pwd)/cloudflared-data}"
 BASE_DIR="$DEFAULT_BASE_DIR"
 CLOUDFLARED_IMAGE="${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:latest}"
-CONTAINER_CF_DIR="/home/nonroot/.cloudflared"
+CONTAINER_HOME="/home/nonroot"
+CONTAINER_CF_DIR="${CONTAINER_HOME}/.cloudflared"
 STATE_FILE=""
 BACKUP_DIR=""
 COMPOSE_FILE=""
@@ -233,6 +234,8 @@ cloudflared() {
   mkdir -p "$tunnel_dir"
   docker run --rm "$(docker_tty_args)" \
     --user "$(id -u):$(id -g)" \
+    --workdir "$CONTAINER_HOME" \
+    -e "HOME=${CONTAINER_HOME}" \
     -v "${tunnel_dir}:${CONTAINER_CF_DIR}" \
     "$CLOUDFLARED_IMAGE" "$@"
 }
@@ -244,6 +247,8 @@ cloudflared_no_tty() {
   mkdir -p "$tunnel_dir"
   docker run --rm \
     --user "$(id -u):$(id -g)" \
+    --workdir "$CONTAINER_HOME" \
+    -e "HOME=${CONTAINER_HOME}" \
     -v "${tunnel_dir}:${CONTAINER_CF_DIR}" \
     "$CLOUDFLARED_IMAGE" "$@"
 }
