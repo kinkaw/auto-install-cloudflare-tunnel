@@ -1,8 +1,9 @@
 @echo off
 setlocal
+rem cftm-wrapper-version=1.0.1
 set "CFTM_ENTRY=%~f0"
 set "CFTM_TMP=%TEMP%\cftm-%RANDOM%-%RANDOM%.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_' + 'SCRIPT_START'; $idx=$raw.IndexOf($marker); if($idx -lt 0){ Write-Error 'Embedded PowerShell script not found.'; exit 1 }; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_' + 'SCRIPT_START'; $matches=[regex]::Matches($raw,[regex]::Escape($marker)); if($matches.Count -ne 1){ Write-Error ('Embedded PowerShell marker count must be 1, found ' + $matches.Count); exit 1 }; $idx=$matches[0].Index; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
 if errorlevel 1 exit /b %ERRORLEVEL%
 powershell -NoProfile -ExecutionPolicy Bypass -File "%CFTM_TMP%" %*
 set "CFTM_EXIT=%ERRORLEVEL%"
@@ -15,7 +16,7 @@ param(
 )
 
 $AppName = 'Cloudflare Tunnel Manager'
-$AppVersion = '1.0.0'
+$AppVersion = '1.0.1'
 $BaseDir = if ($env:CFTM_HOME) { $env:CFTM_HOME } else { Join-Path (Get-Location) 'cloudflared-data' }
 $CloudflaredImage = if ($env:CLOUDFLARED_IMAGE) { $env:CLOUDFLARED_IMAGE } else { 'cloudflare/cloudflared:latest' }
 $ContainerCfDir = '/home/nonroot/.cloudflared'

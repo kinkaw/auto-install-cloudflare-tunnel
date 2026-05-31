@@ -131,6 +131,20 @@ cloudflare-tunnel-manager.bat --help
 cloudflare-tunnel-manager.bat --version
 ```
 
+## ตรวจสอบว่าใช้ไฟล์เวอร์ชันล่าสุด
+
+ถ้ารันแล้วเจอ error ในไฟล์ชั่วคราวลักษณะ `Unexpected token 'Embedded'` หรือเห็นข้อความ `$raw.IndexOf($marker)` ใน error แปลว่ายังใช้ไฟล์ `.bat` เวอร์ชันเก่าอยู่ ให้ดาวน์โหลด/คัดลอก `cloudflare-tunnel-manager.bat` ล่าสุดทับไฟล์เดิม แล้วเช็คว่า:
+
+```bat
+cloudflare-tunnel-manager.bat --version
+```
+
+ควรแสดง `1.0.1` หรือใหม่กว่า และบรรทัดบน ๆ ของไฟล์ควรมี:
+
+```bat
+rem cftm-wrapper-version=1.0.1
+```
+
 ## ข้อควรระวัง
 
 - อย่า commit หรือแชร์โฟลเดอร์ `cloudflared-data` หากมี credentials จริง
