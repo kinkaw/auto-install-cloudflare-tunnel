@@ -139,10 +139,10 @@ cloudflare-tunnel-manager.bat --version
 cloudflare-tunnel-manager.bat --version
 ```
 
-ควรแสดง `1.0.2` หรือใหม่กว่า และบรรทัดบน ๆ ของไฟล์ควรมี:
+ควรแสดง `1.0.3` หรือใหม่กว่า และบรรทัดบน ๆ ของไฟล์ควรมี:
 
 ```bat
-rem cftm-wrapper-version=1.0.2
+rem cftm-wrapper-version=1.0.3
 ```
 
 เช็คบรรทัดที่เคย error ได้ด้วย:
@@ -171,7 +171,7 @@ docker: error getting credentials - err: exit status 1, out: `A specified logon 
 docker pull cloudflare/cloudflared:latest
 ```
 
-ถ้ายัง error เดิม ให้ backup และแก้ Docker config:
+สคริปต์เวอร์ชัน `1.0.3` ขึ้นไปจะพยายามหา `config.json` และถามก่อน backup/remove `credsStore` หรือ `credHelpers` ให้อัตโนมัติ ถ้าต้องการแก้เอง ให้ backup และแก้ Docker config:
 
 ```bat
 copy "%USERPROFILE%\.docker\config.json" "%USERPROFILE%\.docker\config.json.bak"

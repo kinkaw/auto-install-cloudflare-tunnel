@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem cftm-wrapper-version=1.0.2
+rem cftm-wrapper-version=1.0.3
 set "CFTM_ENTRY=%~f0"
 set "CFTM_TMP=%TEMP%\cftm-%RANDOM%-%RANDOM%.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$bat=$env:CFTM_ENTRY; $raw=Get-Content -Raw -LiteralPath $bat; $marker='# POWERSHELL_' + 'SCRIPT_START'; $matches=[regex]::Matches($raw,[regex]::Escape($marker)); if($matches.Count -ne 1){ Write-Error ('Embedded PowerShell marker count must be 1, found ' + $matches.Count); exit 1 }; $idx=$matches[0].Index; $script=$raw.Substring($idx + $marker.Length); Set-Content -LiteralPath $env:CFTM_TMP -Value $script -Encoding UTF8"
@@ -16,7 +16,7 @@ param(
 )
 
 $AppName = 'Cloudflare Tunnel Manager'
-$AppVersion = '1.0.2'
+$AppVersion = '1.0.3'
 $BaseDir = if ($env:CFTM_HOME) { $env:CFTM_HOME } else { Join-Path (Get-Location) 'cloudflared-data' }
 $CloudflaredImage = if ($env:CLOUDFLARED_IMAGE) { $env:CLOUDFLARED_IMAGE } else { 'cloudflare/cloudflared:latest' }
 $ContainerCfDir = '/home/nonroot/.cloudflared'
@@ -138,25 +138,55 @@ function Require-Docker {
     return $true
 }
 
+function Get-DockerConfigCandidates {
+    $paths = @()
+    if ($env:DOCKER_CONFIG) { $paths += (Join-Path $env:DOCKER_CONFIG 'config.json') }
+    if ($env:USERPROFILE) { $paths += (Join-Path $env:USERPROFILE '.docker\config.json') }
+    if ($env:HOMEDRIVE -and $env:HOMEPATH) { $paths += (Join-Path ($env:HOMEDRIVE + $env:HOMEPATH) '.docker\config.json') }
+    return @($paths | Where-Object { $_ } | Select-Object -Unique)
+}
+
+function Repair-DockerCredentialConfig([string] $ConfigPath, [object] $DockerConfig) {
+    if (-not (Confirm 'Back up config.json and remove credsStore/credHelpers now?' 'N')) { return $false }
+    $backup = "$ConfigPath.bak.$((Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ'))"
+    Copy-Item -LiteralPath $ConfigPath -Destination $backup -Force
+    [void] $DockerConfig.PSObject.Properties.Remove('credsStore')
+    [void] $DockerConfig.PSObject.Properties.Remove('credHelpers')
+    $DockerConfig | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $ConfigPath -Encoding ASCII
+    Write-Ok "Backed up Docker config to $backup"
+    Write-Ok 'Removed credsStore/credHelpers from Docker config.'
+    Write-Info 'Retry: docker pull cloudflare/cloudflared:latest'
+    Write-Info 'If you use private registries, run docker login again later.'
+    return $true
+}
+
 function Show-DockerCredentialHelp {
-    $config = Join-Path $env:USERPROFILE '.docker\config.json'
     Write-Warn 'Docker failed. If the message mentions credentials or logon session, Docker Desktop credential helper may be unavailable in this Windows session.'
     Write-Info 'First try running this script from a normal non-elevated terminal after Docker Desktop is fully started.'
     Write-Info 'Then test manually: docker pull cloudflare/cloudflared:latest'
-    if (Test-Path -LiteralPath $config) {
+
+    $foundConfig = $false
+    $foundCredentialConfig = $false
+    foreach ($config in Get-DockerConfigCandidates) {
+        if (-not (Test-Path -LiteralPath $config)) { continue }
+        $foundConfig = $true
+        Write-Info "Inspecting Docker config: $config"
         try {
             $dockerConfig = Get-Content -Raw -LiteralPath $config | ConvertFrom-Json
             $hasCredsStore = $dockerConfig.PSObject.Properties.Name -contains 'credsStore'
             $hasCredHelpers = $dockerConfig.PSObject.Properties.Name -contains 'credHelpers'
             if ($hasCredsStore -or $hasCredHelpers) {
+                $foundCredentialConfig = $true
                 Write-Warn "Docker config contains credsStore/credHelpers: $config"
-                Write-Info 'For public images, you can back up config.json and remove credsStore/credHelpers, then retry docker pull.'
-                Write-Info 'You may need docker login again later for private registries.'
+                Write-Info 'For public images, removing credsStore/credHelpers can bypass broken Windows credential helpers.'
+                [void] (Repair-DockerCredentialConfig $config $dockerConfig)
             }
         } catch {
-            Write-Warn "Could not inspect Docker config: $config"
+            Write-Warn "Could not inspect Docker config $config"
         }
     }
+    if (-not $foundConfig) { Write-Warn 'No Docker config.json found in DOCKER_CONFIG, USERPROFILE, or HOMEDRIVE/HOMEPATH.' }
+    if ($foundConfig -and -not $foundCredentialConfig) { Write-Info 'No credsStore/credHelpers keys found in checked Docker config files.' }
 }
 
 function Get-ComposeCommand {
